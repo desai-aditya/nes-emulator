@@ -14,6 +14,7 @@ pub enum OpCode {
     LDA,
     BRK,
     TAX,
+    INX,
 }
 impl OpCode {
     pub fn from_u8(opcode: u8) -> Self {
@@ -21,6 +22,7 @@ impl OpCode {
             0xa9 => OpCode::LDA,
             0x00 => OpCode::BRK,
             0xaa => OpCode::TAX,
+            0xe8 => OpCode::INX,
             _ => panic!("Invalid opcode"),
         }
     }
@@ -54,25 +56,35 @@ impl CPU {
         }
     }
 
+    pub fn process_inx(&mut self) {
+        self.register_x = self.register_x.wrapping_add(1);
+        println!("{} x ", self.register_x);
+        self.update_process_status(self.register_x);
+    }
+
     pub fn process_tax(&mut self) {
         self.register_x = self.accumulator;
         self.update_process_status(self.register_x);
     }
 
-    pub fn process_lda(&mut self, program: Vec<u8>) {
+    pub fn process_lda(&mut self, program: &Vec<u8>) {
         self.accumulator = program[self.program_counter as usize];
         self.program_counter += 1;
         self.update_process_status(self.accumulator);
     }
 
     pub fn interpret(&mut self, program: Vec<u8>) {
-        let opcode = program[self.program_counter as usize];
-        self.program_counter += 1;
+        let num_opcodes = program.clone().len() as u16;
+        while self.program_counter < num_opcodes {
+            let opcode = program[self.program_counter as usize];
+            self.program_counter += 1;
 
-        match OpCode::from_u8(opcode) {
-            OpCode::LDA => self.process_lda(program),
-            OpCode::BRK => return,
-            OpCode::TAX => self.process_tax(),
+            match OpCode::from_u8(opcode) {
+                OpCode::LDA => self.process_lda(&program),
+                OpCode::TAX => self.process_tax(),
+                OpCode::INX => self.process_inx(),
+                OpCode::BRK => return,
+            }
         }
     }
 }
@@ -84,8 +96,16 @@ mod tests {
     #[test]
     fn test_lda() {
         let mut cpu = CPU::new();
-        cpu.interpret(vec![0xa9, 0x01]);
+        cpu.interpret(vec![0xa9, 0x01, 0x00]);
         assert_eq!(cpu.accumulator, 1);
+    }
+
+    #[test]
+    fn test_tax() {
+        let mut cpu = CPU::new();
+        cpu.accumulator = 0x10;
+        cpu.interpret(vec![0xaa, 0x00]);
+        assert_eq!(cpu.register_x,0x10);
     }
 
     #[test]
@@ -99,7 +119,7 @@ mod tests {
     #[test]
     fn test_lda_with_status_negative() {
         let mut cpu = CPU::new();
-        cpu.interpret(vec![0xa9, 0x80]);
+        cpu.interpret(vec![0xa9, 0x80, 0x00]);
         assert_eq!(cpu.accumulator, 0x80);
         assert_eq!(cpu.processor_status, 0b1000_0000);
     }
