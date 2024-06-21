@@ -105,7 +105,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.accumulator = 0x10;
         cpu.interpret(vec![0xaa, 0x00]);
-        assert_eq!(cpu.register_x,0x10);
+        assert_eq!(cpu.register_x, 0x10);
     }
 
     #[test]
